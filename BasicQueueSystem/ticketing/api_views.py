@@ -2,15 +2,25 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.generics import ListAPIView, CreateAPIView, \
 RetrieveUpdateDestroyAPIView, GenericAPIView
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.filters import SearchFilter
+from rest_framework.filters import BaseFilterBackend,SearchFilter,OrderingFilter
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
+
+from rest_framework.permissions import BasePermission
+from rest_framework import viewsets
+from oauth2_provider.contrib.rest_framework import TokenHasReadWriteScope, TokenHasScope
 
 from ticketing.serializers import CustomerSerializer, CounterSerializer
 from ticketing.models import Counter, Customer
 
 
 #Customers API Views
+class CustomersViewSet(viewsets.ModelViewSet):
+    queryset = Customer.objects.all()
+    serializer_class = CustomerSerializer
+    permission_classes = [TokenHasScope, TokenHasReadWriteScope]
+    required_scopes = ['customers']
+
 class CustomersPagination(LimitOffsetPagination):
     default_limit = 10
     max_limit = 100 
@@ -18,9 +28,10 @@ class CustomersPagination(LimitOffsetPagination):
 class CustomerList(ListAPIView):
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
-    filter_backends = [DjangoFilterBackend,SearchFilter]
+    filter_backends = [DjangoFilterBackend,SearchFilter,OrderingFilter]
     filterset_fields = ['id',]
     search_fields = ['status']
+    ordering_fields = ['id']
     pagination_class = CustomersPagination
 
 class CustomerCreate(CreateAPIView):
@@ -52,6 +63,11 @@ class CustomerRetrieveUpdateDestroyAPIView(RetrieveUpdateDestroyAPIView):
 
 
 #Counters API Views
+class CountersViewSet(viewsets.ModelViewSet):
+    queryset = Counter.objects.all()
+    serializer_class = CounterSerializer
+    required_scopes = ['counters']
+
 class CountersPagination(LimitOffsetPagination):
     default_limit = 10
     max_limit = 100 
@@ -80,6 +96,7 @@ class CounterRetrieveUpdateDestroyAPIView(RetrieveUpdateDestroyAPIView):
             from django.core.cache import cache
             cache.delete('counter_data_{}'.format(Counter_id))
         return response
+
 
     def update(self, request, *args, **kwargs):
         response = super().update(request,*args, **kwargs)
